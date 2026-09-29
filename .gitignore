@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+state/
+*.sqlite3*
+*.sqlite3.lock
+dist/
+.pytest_cache/
+poetry.lock

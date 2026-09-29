@@ -1,0 +1,21 @@
+[Unit]
+Description=Spencer Stuart job email notifier
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=spencer-jobs
+Group=spencer-jobs
+WorkingDirectory=/opt/spencer-jobs
+EnvironmentFile=/etc/spencer-jobs.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/spencer-jobs/.venv/bin/python -m job_scraping_notification check
+StateDirectory=spencer-jobs
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+TimeoutStartSec=20min

@@ -1,0 +1,19 @@
+[project]
+name = "job-scraping-notification"
+version = "0.1.0"
+description = "Email notifications for new and returning Spencer Stuart Workday jobs"
+authors = [
+    {name = "Jerenemy",email = "jzay@wesleyan.edu"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+]
+
+[project.scripts]
+spencer-jobs = "job_scraping_notification.__main__:main"
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

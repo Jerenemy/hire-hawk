@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Spencer Stuart jobs every 30 minutes
+
+[Timer]
+OnCalendar=*-*-* *:00,30:00
+Persistent=true
+Unit=spencer-jobs.service
+
+[Install]
+WantedBy=timers.target
