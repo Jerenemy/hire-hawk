@@ -3,13 +3,13 @@
     "total": 2,
     "jobPostings": [
       {
-        "title": "Associate, Financial Services",
-        "externalPath": "/job/New-York/Associate--Financial-Services_R4879-1",
+        "title": "Analyst, Financial Services",
+        "externalPath": "/job/New-York/Analyst--Financial-Services_R4879-1",
         "postedOn": "Posted 30+ Days Ago"
       },
       {
-        "title": "Associate, Industrial Practice",
-        "externalPath": "/job/New-York/Associate--Industrial-Practice_R4850",
+        "title": "Analyst, Industrial Practice",
+        "externalPath": "/job/New-York/Analyst--Industrial-Practice_R4850",
         "postedOn": "Posted 30+ Days Ago"
       }
     ]
@@ -18,7 +18,7 @@
     {
       "jobPostingInfo": {
         "id": "f7f7c8199905100205d7757cf0a60000",
-        "title": "Associate, Financial Services",
+        "title": "Analyst, Financial Services",
         "location": "New York",
         "jobReqId": "R4879",
         "posted": true,
@@ -29,7 +29,7 @@
     {
       "jobPostingInfo": {
         "id": "51dded8a7fb71000b622f07c2af90000",
-        "title": "Associate, Industrial Practice",
+        "title": "Analyst, Industrial Practice",
         "location": "New York",
         "additionalLocations": [
           "Chicago"

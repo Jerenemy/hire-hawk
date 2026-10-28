@@ -1,0 +1,22 @@
+#!/bin/sh
+# Installed once, by hand, as /usr/local/sbin/spencer-jobs-deploy (root-owned); the GitHub
+# workflow runs it through sudo. It fast-forwards the root-owned checkout at /opt/spencer-jobs,
+# refreshes the systemd units and checks the code imports. The service is a oneshot started by
+# its timer, so the next check simply runs the new code: nothing needs restarting.
+set -eu
+EXPECTED_SHA=${1:-}
+case $EXPECTED_SHA in
+  *[!0-9a-f]* | "") echo "usage: spencer-jobs-deploy <commit sha>" >&2; exit 2 ;;
+esac
+cd /opt/spencer-jobs
+OLD=$(git rev-parse HEAD)
+git fetch --quiet origin main
+git merge --ff-only origin/main  # refuses, leaving the server untouched, if the checkout diverged
+git merge-base --is-ancestor "$EXPECTED_SHA" HEAD \
+  || { echo "server is at $(git rev-parse --short HEAD), which does not contain $EXPECTED_SHA" >&2; exit 1; }
+install -m 0644 deploy/spencer-jobs.service deploy/spencer-jobs.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --quiet spencer-jobs.timer
+.venv/bin/python -c 'import job_scraping_notification.__main__'
+echo "Deployed $OLD -> $(git log -1 --format='%H %s')"
+systemctl list-timers --no-pager spencer-jobs.timer

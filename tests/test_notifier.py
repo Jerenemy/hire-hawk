@@ -72,6 +72,17 @@ class WorkdayTests(unittest.TestCase):
         with self.assertRaises(FetchError):
             Workday(request=Mock(side_effect=[FIXTURE["page"], FIXTURE["details"][0], FIXTURE["details"][0]])).fetch()
 
+    def test_only_analyst_titles(self):
+        details = copy.deepcopy(FIXTURE["details"])
+        details[0]["jobPostingInfo"]["title"] = "Associate, Financial Services"
+        details[1]["jobPostingInfo"]["title"] = "Senior Analyst, Industrial Practice"
+        jobs = Workday(request=Mock(side_effect=[FIXTURE["page"], *details])).fetch()
+        self.assertEqual([j.title for j in jobs], ["Senior Analyst, Industrial Practice"])
+        for title in ("Senior Associate, Consumer Practice", "Associate General Counsel", "Analytics Lead"):
+            details[1]["jobPostingInfo"]["title"] = title
+            with self.subTest(title=title):
+                self.assertEqual(Workday(request=Mock(side_effect=[FIXTURE["page"], *details])).fetch(), [])
+
     def test_valid_empty(self):
         self.assertEqual(Workday(request=Mock(return_value={"total": 0, "jobPostings": []})).fetch(), [])
 
