@@ -1,0 +1,37 @@
+name: Test and deploy
+
+# Every push to main runs the tests, then SSHes into the server and runs the root-owned
+# /usr/local/sbin/spencer-jobs-deploy, which fast-forwards /opt/spencer-jobs and refreshes the
+# systemd units. A failing test stops the deploy. One-time server setup: README, "Automatic deploys".
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Tests (fixtures only, no network)
+        run: python -m unittest discover -s tests -v
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and refresh on the server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: sudo /usr/local/sbin/spencer-jobs-deploy ${{ github.sha }}

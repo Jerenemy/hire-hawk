@@ -2,7 +2,7 @@
 
 Checks your exact Spencer Stuart Workday search and emails you when a new job appears or a removed job returns. Runs every 30 minutes on Linux using systemd. Python 3.13+; no third-party runtime dependencies or browser required.
 
-The default search preserves all six location IDs, Permanent, Full time, and Associate Team from your supplied URL. There is no additional title restriction. Run `fetch` to see the exact jobs it currently matches.
+The default search preserves all six location IDs, Permanent, Full time, and Associate Team from your supplied URL. Workday files analysts and associates under the same Associate Team category, so the checker also keeps only jobs whose title contains the word “Analyst” (for example “Analyst, Industrial Practice” or “Senior Analyst, …”); associate roles never reach your inbox. Run `fetch` to see the exact jobs it currently matches.
 
 ## How notifications work
 
@@ -38,12 +38,12 @@ Keep credentials on your server, outside the repository. You do not need to send
 
 These commands assume systemd, sudo, and an installed Python 3.13+ interpreter with the `venv` module. Install Python using your distribution's supported installation method first; use its actual executable name in the commands if it differs from `python3`.
 
-Copy this project to the server and run the following **from that project directory**:
+`/opt/spencer-jobs` is a root-owned git checkout, which the [automatic deploys](#automatic-deploys) fast-forward. Run the following **from `/opt/spencer-jobs`** once it is cloned:
 
 ```sh
+sudo git clone https://github.com/Jerenemy/hire-hawk.git /opt/spencer-jobs
+cd /opt/spencer-jobs
 sudo useradd --system --home-dir /var/lib/spencer-jobs --shell /usr/sbin/nologin spencer-jobs
-sudo install -d -m 0755 /opt/spencer-jobs
-sudo cp -r job_scraping_notification /opt/spencer-jobs/
 sudo python3 -m venv /opt/spencer-jobs/.venv
 sudo install -d -o spencer-jobs -g spencer-jobs -m 0700 /var/lib/spencer-jobs
 sudo install -o root -g root -m 0600 .env.example /etc/spencer-jobs.env
@@ -102,6 +102,38 @@ The first check sends the current matches. The timer then runs at minute 00 and 
 
 Commands: `fetch` prints live matches as JSON; `test-email` verifies Gmail delivery; `check` fetches, saves changes, and drains pending emails. Failures return exit status 1 and log to stderr/the systemd journal. Successful snapshots and accepted emails are logged. Credentials and SMTP response bodies are not logged.
 
+## Automatic deploys
+
+`.github/workflows/deploy.yml` runs on every push to `main` (and by hand from the Actions tab). It runs the tests, then SSHes into the server and runs `sudo /usr/local/sbin/spencer-jobs-deploy <commit>`. That script fast-forwards `/opt/spencer-jobs` to `origin/main`, reinstalls the service and timer units, reloads systemd, and checks the code imports. The service is a oneshot started by the timer, so the next check runs the new code; nothing is restarted and the database in `/var/lib/spencer-jobs` is never touched. If the checkout was edited on the server, the fast-forward refuses and the run fails, leaving the server as it was.
+
+One-time setup, on the server. It uses the same `jzay` deploy key as the website, so step 1 is already done if the website deploys automatically.
+
+1. Make a key for GitHub and authorize it (skip if `~/.ssh/github_deploy` exists):
+
+```bash
+ssh-keygen -t ed25519 -N '' -C github-deploy -f ~/.ssh/github_deploy && cat ~/.ssh/github_deploy.pub >> ~/.ssh/authorized_keys
+```
+
+2. If `/opt/spencer-jobs` was set up by copying files rather than cloning, turn it into a checkout. This keeps `.venv`, and `/etc/spencer-jobs.env` and the database are elsewhere:
+
+```bash
+sudo git -C /opt/spencer-jobs init -q -b main && sudo git -C /opt/spencer-jobs remote add origin https://github.com/Jerenemy/hire-hawk.git && sudo git -C /opt/spencer-jobs fetch -q origin main && sudo git -C /opt/spencer-jobs reset -q --hard origin/main
+```
+
+3. Install the deploy script root-owned (the workflow runs this copy, so a push cannot change what sudo runs) and let `jzay` run it without a password:
+
+```bash
+sudo install -o root -g root -m 0755 /opt/spencer-jobs/deploy/spencer-jobs-deploy /usr/local/sbin/
+```
+
+```bash
+echo 'jzay ALL=(root) NOPASSWD: /usr/local/sbin/spencer-jobs-deploy' | sudo tee /etc/sudoers.d/spencer-jobs-deploy && sudo chmod 0440 /etc/sudoers.d/spencer-jobs-deploy && sudo visudo -c
+```
+
+4. In GitHub, hire-hawk → Settings → Secrets and variables → Actions, add `DEPLOY_HOST`, `DEPLOY_USER` (`jzay`) and `DEPLOY_SSH_KEY` (the contents of `~/.ssh/github_deploy`), with the same values as the website repository, plus `DEPLOY_PORT` if SSH is not on 22. Then rerun the latest "Test and deploy" run from the Actions tab.
+
+After a change to `deploy/spencer-jobs-deploy` itself, repeat step 3.
+
 ## Maintenance and troubleshooting
 
 ```sh
@@ -125,4 +157,4 @@ The database contains history and pending notifications; keep it across code upd
 - If Gmail accepts a message and the process stops before recording delivery, it can be sent again. Accepted mail is not a guarantee of inbox placement.
 - Failures appear in the journal; there is no separate failure-alert channel. Review logs periodically.
 
-The automated suite uses Workday fixtures and mocked SMTP to cover filters, pagination, stable IDs, first-run behavior, returning jobs, transactions, failures, retries, restarts, and locking. Live read-only validation returned the two expected postings, including New York and Chicago for the Industrial Practice role. A real test email and systemd activation must be completed on your server with your credentials.
+The automated suite uses Workday fixtures and mocked SMTP to cover filters, pagination, stable IDs, first-run behavior, returning jobs, transactions, failures, retries, restarts, and locking. Live read-only validation on 2026-10-28 returned three analyst postings (Industrial Practice; Supply Chain and Operations Officer Practice; Board & CEO Advisory Practice) and none of the associate ones. A real test email and systemd activation must be completed on your server with your credentials.

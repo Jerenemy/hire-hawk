@@ -1,6 +1,7 @@
 """Read Workday's public CXS endpoints; no browser or authentication required."""
 from dataclasses import asdict, dataclass
 import json
+import re
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit, urlencode
@@ -20,6 +21,8 @@ DEFAULT_URL = (
         "jobFamilyGroup": ["be264fa6cb8b01d203f2b5eb17ba5222"],
     }, doseq=True)
 )
+# Workday files analysts under "Associate Team" too, so only the title tells them apart.
+ANALYST_TITLE = re.compile(r"\banalyst\b", re.IGNORECASE)
 
 
 class FetchError(RuntimeError):
@@ -66,7 +69,7 @@ def request_json(url, payload=None):
 
 
 class Workday:
-    def __init__(self, search_url=DEFAULT_URL, request=request_json):
+    def __init__(self, search_url=DEFAULT_URL, request=request_json, title_pattern=ANALYST_TITLE):
         parsed = urlsplit(search_url)
         parts = parsed.path.strip("/").split("/")
         if (parsed.scheme != "https" or parsed.hostname != "spencerstuart.wd5.myworkdayjobs.com"
@@ -86,6 +89,7 @@ class Workday:
         self.origin = f"https://{parsed.hostname}"
         self.base = self.origin + "/wday/cxs/spencerstuart/Spencer_Stuart_External_Careers"
         self.request = request
+        self.title_pattern = title_pattern
 
     def fetch(self):
         rows = []
@@ -128,6 +132,8 @@ class Workday:
             if not isinstance(additional, list) or any(not isinstance(x, str) for x in additional):
                 raise FetchError("Invalid additional locations")
             locations.extend(additional)
+            if not self.title_pattern.search(detail["title"]):
+                continue
             jobs.append(Job(detail["id"], detail["title"], "; ".join(dict.fromkeys(locations)),
                             detail["jobReqId"], self.origin +
                             "/en-US/Spencer_Stuart_External_Careers" + row["externalPath"],
